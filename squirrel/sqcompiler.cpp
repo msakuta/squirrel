@@ -861,6 +861,7 @@ public:
         case TK_CLONE : Lex(); UnaryOP(_OP_CLONE); break;
         case TK_MINUSMINUS :
         case TK_PLUSPLUS :PrefixIncDec(_token); break;
+		case TK_NEW: NewExpr(); break;
         case TK_DELETE : DeleteExpr(); break;
         case _SC('('): Lex(); CommaExpr(); Expect(_SC(')'));
             break;
@@ -1431,6 +1432,28 @@ public:
         if(base != -1) _fs->PopTarget();
         _fs->AddInstruction(_OP_NEWOBJ, _fs->PushTarget(), base, attrs,NOT_CLASS);
         ParseTableOrClass(_SC(';'),_SC('}'));
+	}
+	void NewExpr()
+	{
+		SQExpState es;
+		Lex();
+		es = _es;
+		_es.donot_get = true;
+		PrefixedExpr();
+		if(_es.etype==EXPR) Error(_SC("can't new an expression"));
+		if(_es.etype==OBJECT || _es.etype==BASE) {
+			if(_token == _SC('=')) { 
+				Lex();
+				Expression();
+			}
+			else
+				_fs->AddInstruction(_OP_LOADNULLS, _fs->PushTarget(),1);
+			EmitDerefOp(_OP_NEWSLOT);
+		}
+		else {
+			Error(_SC("cannot new an (outer) local"));
+		}
+		_es = es;
     }
     void DeleteExpr()
     {
